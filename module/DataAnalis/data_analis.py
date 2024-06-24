@@ -60,7 +60,7 @@ def create_rnn_model(input_steps=120, input_shape=3, output_steps=24, output_sha
     model.compile(optimizer='adam', loss='mae')
     return model
 
-def train_and_save_model(model, X_train, y_train, model_name, epochs=20, batch_size=32):
+def train_and_save_model(model, X_train, y_train, model_name, epochs=300, batch_size=32):
     model.fit(X_train, y_train, epochs=epochs, batch_size=batch_size)
     model.save(model_name)
 

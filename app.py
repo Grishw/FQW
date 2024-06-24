@@ -302,8 +302,8 @@ def results_preprocessing_2():
     ww = xx[-1:]
 
     #predict
-    predictions = DataAnalis.predict_rnn(rnn_model, ww, steps=10)
-    #print(predictions)
+    predictions = DataAnalis.predict_rnn(rnn_model, ww, steps=1)
+    print(predictions)
 
     tr_data, tr_temp, tr_pre = DataAnalis.split_prediction_rnn(predictions)
 
@@ -318,7 +318,6 @@ def results_preprocessing_2():
 
     name_to_save = DataProcess.get_predict_result_save_name()
     resultData.to_csv(name_to_save)
-
     
     tech_result_plot_1 = DataProcess.create_plot('line', tr_pre_flat, tr_data_flat,  'Pressure', 'Date','Прогноз давления', [])
     tech_result_plot = DataProcess.create_plot('line',  tr_temp_flat, tr_data_flat, 'Temp', 'Date', 'Прогноз температуры', [])
