@@ -4,6 +4,8 @@ import base64
 from datetime import datetime
 import matplotlib
 import matplotlib.pyplot as plt
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
+from sklearn.metrics import mean_squared_error, r2_score
 
 from flask import Flask, render_template_string, request, render_template, redirect, url_for
 
@@ -181,8 +183,8 @@ def predict_param():
     print('-1-')
     print(lastt)
 
-    razladca_plot = DataProcess.create_plot('line', data['Temperature'].to_numpy(), data['Date'].to_numpy(), 'Temperature', 'Date', "Точка разладки",  [razladca_date], filename="localData/plot_1.html")
-    last_fragment = DataProcess.create_plot('line', lastt, lastd, 'Temperature', 'Date', "Последний фрагмент", [razladca_date], filename="localData/plot_2.html")
+    razladca_plot = DataProcess.create_plot('line', data['Temperature'].to_numpy(), data['Date'].to_numpy(), 'Temperature', 'Date', "Точка разладки",  [razladca_date])
+    last_fragment = DataProcess.create_plot('line', lastt, lastd, 'Temperature', 'Date', "Последний фрагмент", [razladca_date])
 
     models = ["Perseptron (MLP)", "Свёрточные нейронные сети (CNN)", 'Рекуррентные нейронные сети (RNN)']
     temp = PageTemp.get_page_by_name('predict')
@@ -281,29 +283,87 @@ def results_preprocessing_2():
     X_train1 = df1[f].values
     y_train1 = df1[t].values
 
+    #разбитие на шаги
     X_train1, y_train1  = DataProcess.my_array_split(X_train1, y_train1, 120, 24)
     xx = np.array(X_train1)
     yy = np.array(y_train1)
-
-    input_shape_rnn_functions = xx[0].shape[1]
-    input_shape_rnn_steps = xx[0].shape[0]
-
-    out_shape_rnn_functions = yy[0].shape[1]
-    out_shape_rnn_steps = yy[0].shape[0]
     
-    # by рекуррентная нейронная сеть (RNN) с использованием LSTM-слоя и полносвязных (Dense) слоев.
+    assert xx.shape == (32, 120, 3), "Начальный массив должен иметь форму (32, 120, 3)"
+    assert yy.shape == (32, 24, 2), "Начальный массив должен иметь форму (32, 24, 2)"
+
+    #разбитие на тестовые и оценочные
+    count = xx.shape[0]
+    test_count = count // 4
+    train_count = test_count*3
+    xx_train = xx[:train_count]
+    yy_train = yy[:train_count]
+    assert xx_train.shape == (24, 120, 3), "Начальный массив должен иметь форму (24, 120, 3)"
+    assert yy_train.shape == (24, 24, 2), "Начальный массив должен иметь форму (24, 24, 2)"
+
+    xx_test = xx[-test_count:]
+    yy_test = yy[-test_count:]
+    assert xx_test.shape == (8, 120, 3), "Начальный массив должен иметь форму (8, 120, 3)"
+    assert yy_test.shape == (8, 24, 2), "Начальный массив должен иметь форму (8, 24, 2)"
+
+    #скаллтрование
+    scaler_x = MinMaxScaler()
+    scaler_y = MinMaxScaler()
+
+    xx_scaled = scaler_x.fit_transform(xx_train.reshape(-1, xx_train.shape[-1])).reshape(xx_train.shape)
+    yy_scaled = scaler_y.fit_transform(yy_train.reshape(-1, yy_train.shape[-1])).reshape(yy_train.shape)
+    #xx_scaled = xx_train
+    #yy_scaled = yy_test
+    assert xx_scaled.shape == (24, 120, 3), "Начальный массив должен иметь форму (24, 120, 3)"
+    assert yy_scaled.shape == (24, 24, 2), "Начальный массив должен иметь форму (24, 24, 2)"
+
+
+    input_shape_rnn_functions = xx_scaled[0].shape[1]
+    input_shape_rnn_steps = xx_scaled[0].shape[0]
+
+    out_shape_rnn_functions = yy_scaled[0].shape[1]
+    out_shape_rnn_steps = yy_scaled[0].shape[0]
+    
+    # by perseptron.
     # создание и обучени или загрузка
-    rnn_model, flag = DataAnalis.load_or_create_model(name, DataAnalis.create_rnn_model, input_shape_rnn_steps, input_shape_rnn_functions, out_shape_rnn_steps, out_shape_rnn_functions)
+    mlp_model, flag = DataAnalis.load_or_create_model(name, DataAnalis.create_mlp_model, input_shape_rnn_steps, input_shape_rnn_functions, out_shape_rnn_steps, out_shape_rnn_functions)
 
+    loss_plot = ""
     if flag == False:
-        DataAnalis.train_and_save_model(rnn_model, xx, yy, name)
+        step_history = DataAnalis.train_and_save_model(mlp_model, xx_scaled, yy_scaled, name, epochs = 300, batch_size = 8)
+        #print(step_history.history['loss'])
+        x_data = step_history.history['loss']
+        y_data = [k for k in range(len(x_data))]
+        loss_plot = DataProcess.create_plot('line', x_data, y_data, 'Потери', "Эпоха", 'Потери на этапах обучения')
 
-    # подготовка к прогнозу
+    #оценкаа точности модели 
+    # xx_test = xx[-test_count:]
+    # yy_test = yy[-test_count:]
+    #print(xx_test.shape)
+    for i in range(test_count):
+        # Предсказания на тестовом наборе
+        x_test = xx_test[i].reshape(1, 120, 3)
+        y_pred = mlp_model.predict(x_test)
+        y_test = yy_test[i]
+        # Вычисление метрик точности
+        mse = mean_squared_error(y_test.reshape(-1, y_test.shape[-1]), y_pred.reshape(-1, y_pred.shape[-1]))
+        r2 = r2_score(y_test.reshape(-1, y_test.shape[-1]), y_pred.reshape(-1, y_pred.shape[-1]))
+        print(f'Прогноз номер {i+1}')
+        print(f'Mean Squared Error: {mse}')
+        print(f'R^2 Score: {r2}')
+
+
+
+    
+    #прогноз в перед с последнего значения
     ww = xx[-1:]
+    assert ww.shape == (1, 120, 3), "Начальный массив должен иметь форму (2, 120, 3)"
+    
 
     #predict
-    predictions = DataAnalis.predict_rnn(rnn_model, ww, steps=1)
-    print(predictions)
+    predictions = DataAnalis.predict(mlp_model, ww, steps=10)
+    #print(predictions.shape)
+    assert predictions.shape == (10, 24, 3), "Начальный массив должен иметь форму (10, 24, 3)"
+
 
     tr_data, tr_temp, tr_pre = DataAnalis.split_prediction_rnn(predictions)
 
@@ -319,12 +379,23 @@ def results_preprocessing_2():
     name_to_save = DataProcess.get_predict_result_save_name()
     resultData.to_csv(name_to_save)
     
-    tech_result_plot_1 = DataProcess.create_plot('line', tr_pre_flat, tr_data_flat,  'Pressure', 'Date','Прогноз давления', [])
+    y2 ,x2, z2 = DataProcess.split_result_array_custom(ww[0])
+    tech_result_plot_1 = DataProcess.create_multu_plot(
+        plot_types=['line', 'line'],  # Типы графиков для каждого подграфика
+        ys=[tr_pre_flat, x2],                 # Данные по оси y для каждого подграфика
+        xs=[tr_data_flat, y2],                 # Данные по оси x для каждого подграфика
+        ylabels=['Date', 'Date'],  # Метки оси y для каждого подграфика
+        xlabels=['Pressure', 'Pressure'],  # Метки оси x для каждого подграфика
+        titles=['Прогноз давления', 'Давление'],  # Заголовки для каждого подграфика
+        vertical_lines=[],      # Вертикальные линии для каждого подграфика
+        subplot_titles=['Прогноз давления', 'давление']  # Заголовки подграфиков
+    )
+    #tech_result_plot_1 = DataProcess.create_plot('line', tr_pre_flat, tr_data_flat,  'Pressure', 'Date','Прогноз давления', [])
     tech_result_plot = DataProcess.create_plot('line',  tr_temp_flat, tr_data_flat, 'Temp', 'Date', 'Прогноз температуры', [])
+    plots = [tech_result_plot, tech_result_plot_1, loss_plot]
     temp = PageTemp.get_page_by_name('results_preprocessing_2')
     return render_template(temp, 
-                           tech_result_plot=tech_result_plot,
-                           tech_result_plot_1 = tech_result_plot_1)
+                           plots = plots, plot_count = len(plots))
 
 if __name__ == '__main__':
     matplotlib.use('Agg')

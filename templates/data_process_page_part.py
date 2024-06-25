@@ -185,10 +185,11 @@ translete_data_plot = '''
 tech_result = '''
 <h1 class="text-center mb-5">Model teach result</h1>
 <div class="card p-3 mb-4">
-    <h2>График прогноза по Температура</h2>
-    {{ tech_result_plot | safe }}
-    <h2>График  прогноза по Давлению</h2>
-    {{ tech_result_plot_1 | safe }}
+    {% for plot_index in range(plot_count) %}
+        <h2>plot_index</h2>
+        {{plots[plot_index]}}
+    {% endfor %}
+    
 </div>'''
 
 predict_result = '''

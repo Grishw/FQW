@@ -6,6 +6,8 @@ import numpy as np
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 import plotly.graph_objects as go
 import plotly.io as pio
+from plotly.subplots import make_subplots
+
 
 
 def create_plot_1(plot_type, y, x, ylabel, xlabel, title, veltical_line, figsize=(16, 8)):
@@ -45,7 +47,7 @@ def create_plot_1(plot_type, y, x, ylabel, xlabel, title, veltical_line, figsize
     '''
     return plot
 
-def create_plot(plot_type, y, x, ylabel, xlabel, title, vertical_lines, filename='localData/plot.html'):
+def create_plot(plot_type, y, x, ylabel, xlabel, title, vertical_lines = []):
     fig = go.Figure()
     
     # Создаем график в зависимости от типа
@@ -57,10 +59,6 @@ def create_plot(plot_type, y, x, ylabel, xlabel, title, vertical_lines, filename
         fig.add_trace(go.Scatter(x=x, y=y, mode='markers', name='Scatter Plot'))
     else:
         raise ValueError(f"Unknown plot type: {plot_type}")
-    
-    # Добавляем вертикальные линии
-    for cp in vertical_lines:
-        fig.add_vline(x=cp, line=dict(color='red', dash='dash'), name='Change Point')
 
     # Настраиваем график
     fig.update_layout(
@@ -71,6 +69,38 @@ def create_plot(plot_type, y, x, ylabel, xlabel, title, vertical_lines, filename
     )
     
    # Сохраняем график в HTML буфер
+    buffer = io.StringIO()
+    pio.write_html(fig, file=buffer, auto_open=False, include_plotlyjs='cdn')
+    html_content = buffer.getvalue()
+    buffer.close()
+
+    return html_content
+
+def create_multu_plot(plot_types, ys, xs, ylabels, xlabels, titles, vertical_lines=[], subplot_titles=[]):
+    if len(plot_types) != len(ys) or len(plot_types) != len(xs):
+        raise ValueError("Number of plot types, y-series, and x-series must be the same")
+
+    fig = make_subplots(rows=len(plot_types), cols=1, subplot_titles=subplot_titles)
+
+    for i, (plot_type, y, x, ylabel, xlabel, title) in enumerate(zip(plot_types, ys, xs, ylabels, xlabels, titles), start=1):
+        if plot_type == 'line':
+            fig.add_trace(go.Scatter(x=x, y=y, mode='lines', name='Line Plot'), row=i, col=1)
+        elif plot_type == 'bar':
+            fig.add_trace(go.Bar(x=x, y=y, name='Bar Plot'), row=i, col=1)
+        elif plot_type == 'scatter':
+            fig.add_trace(go.Scatter(x=x, y=y, mode='markers', name='Scatter Plot'), row=i, col=1)
+        else:
+            raise ValueError(f"Unknown plot type: {plot_type}")
+
+        # Добавляем вертикальные линии
+        for cp in vertical_lines:
+            fig.add_vline(x=cp, line=dict(color='red', dash='dash'), name='Change Point', row=i, col=1)
+
+        fig.update_xaxes(title_text=xlabel, row=i, col=1)
+        fig.update_yaxes(title_text=ylabel, row=i, col=1)
+        fig.update_layout(title=title, template='plotly_white')
+
+    # Сохраняем график в HTML буфер
     buffer = io.StringIO()
     pio.write_html(fig, file=buffer, auto_open=False, include_plotlyjs='cdn')
     html_content = buffer.getvalue()
@@ -286,6 +316,19 @@ def get_file_name_for_target_data():
 def get_predict_result_save_name():
     return get_file_save_dir() + 'predict_result.csv'
 
+def split_result_array_custom(a):
+    per_arr = []
+    temp_arr = []
+    data_arr = []
+
+    for e in a:
+        datas = pd.to_datetime(e[0], unit='s')
+        data_arr.append(datas)
+        temp_arr.append(e[1])
+        per_arr.append(e[2])
+
+
+    return data_arr, temp_arr, per_arr
 
 def split_result_array(a):
     per_arr = []
@@ -299,9 +342,14 @@ def split_result_array(a):
     return temp_arr, per_arr
 
 def my_array_split(arr_x, arr_y, step = 120, pred = 24):
+    assert arr_x.shape == (4664, 3), "Начальный массив должен иметь форму (1, 120, 3)"
+    assert arr_y.shape == (4664, 2), "Массив новых элементов должен иметь форму (1, 24, 3)"
     new_x = []
     new_y = []
     new_j = []
+    arr_x_l = arr_x.tolist()
+    arr_y_l = arr_y.tolist()
+    
     j = 0
     flag = 0
     k = 0
@@ -325,3 +373,18 @@ def my_array_split(arr_x, arr_y, step = 120, pred = 24):
                 new_j = []
             
     return new_x, new_y
+
+
+'''
+     y2 ,x2, z2 = DataProcess.split_result_array_custom(ww[0])
+        tech_result_plot_1 = DataProcess.make_subplots(
+        plot_types=['line', 'line'],  # Типы графиков для каждого подграфика
+        ys=[tr_data_flat, y2],                 # Данные по оси y для каждого подграфика
+        xs=[tr_pre_flat, x2],                 # Данные по оси x для каждого подграфика
+        ylabels=['Date', 'Date'],  # Метки оси y для каждого подграфика
+        xlabels=['Pressure', 'Pressure'],  # Метки оси x для каждого подграфика
+        titles=['Прогноз давления', 'Давление'],  # Заголовки для каждого подграфика
+        vertical_lines=[10, 20],      # Вертикальные линии для каждого подграфика
+        subplot_titles=['Прогноз давления', 'давление']  # Заголовки подграфиков
+    )
+    '''
