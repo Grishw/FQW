@@ -208,6 +208,9 @@ def predict_param():
     print('-1-')
     print(lastt)
 
+    lasssss = data.tail(imgcount)
+    lasssss.to_csv("localData/last_sistem.csv")
+
     
     last_fragment = DataProcess.create_plot('line', lastt, lastd, 'Temperature', 'Date', "Последний фрагмент", [razladca_date])
 
@@ -299,9 +302,6 @@ def results_preprocessing():
 def results_preprocessing_2():
    
     df1 = pd.read_csv(DataProcess.data_for_predict_teach_standart())
-    df2 = pd.read_csv(DataProcess.data_for_predict_teach_time_to_reach())
-    mode = request.form['mode']
-    model = request.form['model']
     
     f = ['Date', 'Temperature', 'Pressure']
     t = ['Temperature', 'Pressure']

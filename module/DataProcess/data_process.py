@@ -329,8 +329,8 @@ def my_array_split(arr_x, arr_y, step = 120, pred = 24):
     return new_x, new_y
 
 def my_array_split_1(arr_x, arr_y, step = 120, pred = 24):
-    assert arr_x.shape == (4664, 3), "Начальный массив должен иметь форму (1, 120, 3)"
-    assert arr_y.shape == (4664, 2), "Массив новых элементов должен иметь форму (1, 24, 3)"
+    #assert arr_x.shape == (4664, 3), "Начальный массив должен иметь форму (1, 120, 3)"
+    #assert arr_y.shape == (4664, 2), "Массив новых элементов должен иметь форму (1, 24, 3)"
     new_x = []
     new_y = []
     new_jx = []

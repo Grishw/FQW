@@ -97,7 +97,7 @@ def get_page_by_name(name):
             navegation = navegation_component.render(
                 results_preprocessing="active")
             
-            main_content =  Section.tech_result + Section.predict_result
+            main_content =  Section.tech_result
             
         content = main_content_component.render(main_content=main_content)
         body = main_block.render(main=content, navegation=navegation)
