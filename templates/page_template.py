@@ -91,7 +91,7 @@ def get_page_by_name(name):
             navegation = navegation_component.render(
                 results_preprocessing="active")
             
-            main_content = Section.translete_data_plot + Section.data_last
+            main_content = Section.translete_data_plot
             
         elif name == 'results_preprocessing_2':
             navegation = navegation_component.render(

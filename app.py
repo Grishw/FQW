@@ -29,9 +29,14 @@ cmd_subfolder = os.path.realpath(os.path.abspath(os.path.join(os.path.split(insp
 if cmd_subfolder not in sys.path:
     sys.path.insert(0, cmd_subfolder)
 
+cmd_subfolder = os.path.realpath(os.path.abspath(os.path.join(os.path.split(inspect.getfile( inspect.currentframe() ))[0],"module/ChaosLogic")))
+if cmd_subfolder not in sys.path:
+    sys.path.insert(0, cmd_subfolder)
+
 import page_template as PageTemp
 import data_process as DataProcess
 import data_analis as DataAnalis
+import chaos_logic as ChaosLogic
 
 
 
@@ -160,12 +165,32 @@ def predict_param():
     normalz = DataProcess.normalize_input_data(target, data)
     target_data_normalz = normalz[target]
 
-    # point to chage
-    change_points_0 = DataProcess.cusum(target_data_normalz)
-    points_0 = DataProcess.get_more_points(change_points_0.indMax, change_points_0.B, 0.2)
+    # point to chage 1
+    change_points_0 = ChaosLogic.cusum(target_data_normalz)
+    points_0 = ChaosLogic.get_more_points(change_points_0.indMax, change_points_0.B, 0.2)
     print(len(points_0))
-    change_points_01 =DataProcess.get_point_with_max_index(points_0)
-    
+    change_points_0_max =ChaosLogic.get_point_with_max_index(points_0)
+    change_points_0_date = data['Date'][change_points_0_max]
+    razladca_plot_0 = DataProcess.create_plot('line', data['Temperature'].to_numpy(), data['Date'].to_numpy(), 'Temperature', 'Date', "Точка разладки",  [change_points_0_date])
+
+    # point to chage 1
+    # Параметры
+    window_size = 50
+
+    # Построение ряда локальной фрактальной размерности
+    lfd_series = ChaosLogic.local_fractal_dimension(target_data_normalz, window_size)
+    lfd_series = pd.Series(lfd_series) 
+    change_points_1 = ChaosLogic.cusum(lfd_series)
+    points_1 = ChaosLogic.get_more_points(change_points_0.indMax, change_points_0.B, 0.2)
+    change_points_1_max =ChaosLogic.get_point_with_max_index(points_1)
+    change_points_1_date = data['Date'][change_points_1_max]
+    razladca_plot_1 = DataProcess.create_plot('line', data['Temperature'].to_numpy(), data['Date'].to_numpy(), 'Temperature', 'Date', "Точка разладки",  [change_points_1_date])
+    y = [x for x in range(len(change_points_1.B))]
+    line_pos = [x for x in range(len(points_1)) if points_1[x] == change_points_1_max]
+    fsd_plot = DataProcess.create_plot('line',  change_points_1.B, y, 'Date', 'Фрактальная размерность', "Точка разладки",  [line_pos])
+    # point to chage result
+    change_points_01 = (change_points_0_max + change_points_1_max) // 2
+
     print('--')
     print(change_points_01)
     print(data['Date'][change_points_01])
@@ -183,7 +208,7 @@ def predict_param():
     print('-1-')
     print(lastt)
 
-    razladca_plot = DataProcess.create_plot('line', data['Temperature'].to_numpy(), data['Date'].to_numpy(), 'Temperature', 'Date', "Точка разладки",  [razladca_date])
+    
     last_fragment = DataProcess.create_plot('line', lastt, lastd, 'Temperature', 'Date', "Последний фрагмент", [razladca_date])
 
     models = ["Perseptron (MLP)", "Свёрточные нейронные сети (CNN)", 'Рекуррентные нейронные сети (RNN)']
@@ -191,7 +216,11 @@ def predict_param():
     return render_template(temp, 
                            file_name=file_path,
                            razladca_point=razladca_point,
-                           razladca_plot=razladca_plot,
+                           razladca_plot_0=razladca_plot_0, 
+                           razladca_point_0=change_points_0_max,
+                           razladca_plot_1=razladca_plot_1,
+                           razladca_point_1=change_points_1_max,
+                           fsd_plot=fsd_plot,
                            last_fragment_count=last_fragment_count,
                            last_fragment=last_fragment,
                            models=models,
@@ -284,12 +313,12 @@ def results_preprocessing_2():
     y_train1 = df1[t].values
 
     #разбитие на шаги
-    X_train1, y_train1  = DataProcess.my_array_split(X_train1, y_train1, 120, 24)
+    X_train1, y_train1  = DataProcess.my_array_split_1(X_train1, y_train1, 120, 24)
     xx = np.array(X_train1)
     yy = np.array(y_train1)
     
-    assert xx.shape == (32, 120, 3), "Начальный массив должен иметь форму (32, 120, 3)"
-    assert yy.shape == (32, 24, 2), "Начальный массив должен иметь форму (32, 24, 2)"
+    #assert xx.shape == (32, 120, 3), "Начальный массив должен иметь форму (32, 120, 3)"
+    #assert yy.shape == (32, 24, 2), "Начальный массив должен иметь форму (32, 24, 2)"
 
     #разбитие на тестовые и оценочные
     count = xx.shape[0]
@@ -297,13 +326,13 @@ def results_preprocessing_2():
     train_count = test_count*3
     xx_train = xx[:train_count]
     yy_train = yy[:train_count]
-    assert xx_train.shape == (24, 120, 3), "Начальный массив должен иметь форму (24, 120, 3)"
-    assert yy_train.shape == (24, 24, 2), "Начальный массив должен иметь форму (24, 24, 2)"
+    #assert xx_train.shape == (24, 120, 3), "Начальный массив должен иметь форму (24, 120, 3)"
+    #assert yy_train.shape == (24, 24, 2), "Начальный массив должен иметь форму (24, 24, 2)"
 
     xx_test = xx[-test_count:]
     yy_test = yy[-test_count:]
-    assert xx_test.shape == (8, 120, 3), "Начальный массив должен иметь форму (8, 120, 3)"
-    assert yy_test.shape == (8, 24, 2), "Начальный массив должен иметь форму (8, 24, 2)"
+    #assert xx_test.shape == (8, 120, 3), "Начальный массив должен иметь форму (8, 120, 3)"
+    #assert yy_test.shape == (8, 24, 2), "Начальный массив должен иметь форму (8, 24, 2)"
 
     #скаллтрование
     scaler_x = MinMaxScaler()
@@ -313,8 +342,8 @@ def results_preprocessing_2():
     yy_scaled = scaler_y.fit_transform(yy_train.reshape(-1, yy_train.shape[-1])).reshape(yy_train.shape)
     #xx_scaled = xx_train
     #yy_scaled = yy_test
-    assert xx_scaled.shape == (24, 120, 3), "Начальный массив должен иметь форму (24, 120, 3)"
-    assert yy_scaled.shape == (24, 24, 2), "Начальный массив должен иметь форму (24, 24, 2)"
+    #assert xx_scaled.shape == (24, 120, 3), "Начальный массив должен иметь форму (24, 120, 3)"
+    #assert yy_scaled.shape == (24, 24, 2), "Начальный массив должен иметь форму (24, 24, 2)"
 
 
     input_shape_rnn_functions = xx_scaled[0].shape[1]
@@ -329,15 +358,18 @@ def results_preprocessing_2():
 
     loss_plot = ""
     if flag == False:
-        step_history = DataAnalis.train_and_save_model(mlp_model, xx_scaled, yy_scaled, name, epochs = 300, batch_size = 8)
+        step_history = DataAnalis.train_and_save_model(mlp_model, xx_scaled, yy_scaled, name, epochs = 200, batch_size = 8)
         #print(step_history.history['loss'])
         x_data = step_history.history['loss']
         y_data = [k for k in range(len(x_data))]
         loss_plot = DataProcess.create_plot('line', x_data, y_data, 'Потери', "Эпоха", 'Потери на этапах обучения')
 
+    
     #оценкаа точности модели 
     # xx_test = xx[-test_count:]
     # yy_test = yy[-test_count:]
+    mse_l = []
+    r2_l = []
     #print(xx_test.shape)
     for i in range(test_count):
         # Предсказания на тестовом наборе
@@ -347,22 +379,25 @@ def results_preprocessing_2():
         # Вычисление метрик точности
         mse = mean_squared_error(y_test.reshape(-1, y_test.shape[-1]), y_pred.reshape(-1, y_pred.shape[-1]))
         r2 = r2_score(y_test.reshape(-1, y_test.shape[-1]), y_pred.reshape(-1, y_pred.shape[-1]))
+        mse_l.append(mse)
+        r2_l.append(r2)
         print(f'Прогноз номер {i+1}')
         print(f'Mean Squared Error: {mse}')
         print(f'R^2 Score: {r2}')
 
-
+    mse_mean = np.mean(mse_l)
+    r2_mean = np.mean(r2_l)
 
     
     #прогноз в перед с последнего значения
     ww = xx[-1:]
-    assert ww.shape == (1, 120, 3), "Начальный массив должен иметь форму (2, 120, 3)"
+    #assert ww.shape == (1, 120, 3), "Начальный массив должен иметь форму (2, 120, 3)"
     
-
+    day = 10
     #predict
-    predictions = DataAnalis.predict(mlp_model, ww, steps=10)
+    predictions = DataAnalis.predict(mlp_model, ww, steps=day)
     #print(predictions.shape)
-    assert predictions.shape == (10, 24, 3), "Начальный массив должен иметь форму (10, 24, 3)"
+    #assert predictions.shape == (10, 24, 3), "Начальный массив должен иметь форму (10, 24, 3)"
 
 
     tr_data, tr_temp, tr_pre = DataAnalis.split_prediction_rnn(predictions)
@@ -395,7 +430,12 @@ def results_preprocessing_2():
     plots = [tech_result_plot, tech_result_plot_1, loss_plot]
     temp = PageTemp.get_page_by_name('results_preprocessing_2')
     return render_template(temp, 
-                           plots = plots, plot_count = len(plots))
+                           plots = plots, plot_count = len(plots),
+                           mse=mse_mean,
+                           mse_1=mse_l[0],
+                           r2=r2_mean,
+                           r2_1=r2_l[0],
+                           day=day)
 
 if __name__ == '__main__':
     matplotlib.use('Agg')

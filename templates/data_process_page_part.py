@@ -132,18 +132,25 @@ data_review_target_and_features = '''
 
 razladca_graphiks = '''
 <div class="card p-3 mb-4">
-    <h1 class="text-center mb-5">Поиск точки разладки по температуре</h1>
+    <h1 class="text-center mb-5">Поиск точки разладки по исходному сигналу</h1>
     <div class="card p-3 mb-4">
-        <h2>Индекс: {{ razladca_point }}</h2>
-        {{ razladca_plot | safe }}
+        <h2>Индекс: {{ razladca_point_0 }}</h2>
+        {{ razladca_plot_0 | safe }}
+    </div>
+    <h1 class="text-center mb-5">Поиск точки разладки по графику фрактальной размерности</h1>
+    <div class="card p-3 mb-4">
+        <h2>График фрактальной размерности</h2>
+        {{ fsd_plot | safe }}
+        <h2>Индекс: {{ razladca_point_1 }}</h2>
+        {{ razladca_plot_1 | safe }}
     </div>
 </div>'''
 
 last_fragment_graphiks = '''
 <div class="card p-3 mb-4">
-    <h1 class="text-center mb-5">Выделение последнего фрагмента по температуре</h1>
+    <h1 class="text-center mb-5">Выделение последнего фрагмента на основе найденной точки разладки</h1>
     <div class="card p-3 mb-4">
-        <h2>Количество данных в последнем фрагменте: {{ last_fragment_count }}</h2>
+        <h2>Количество данных в последнем фрагменте (График для температуры): {{ last_fragment_count }}</h2>
         {{ last_fragment | safe }}
     </div>
 </div>'''
@@ -180,16 +187,24 @@ translete_data_plot = '''
     {{ non_translate_plot | safe }}
     <h2>График времени за которое достигалась точка достижения порогового изменения: </h2>
     {{ time_to_rech_treshold_plot | safe }}
+    <form action="/results_preprocessing_2" method="post" enctype="multipart/form-data">
+            <input type="hidden" name="mode" value="{{ mode }}">
+            <input type="hidden" name="model" value="{{ model }}">
+            <button type="submit" class="btn btn-primary" >Go to nex resulp page</button>
+        </form>
 </div>'''
 
 tech_result = '''
 <h1 class="text-center mb-5">Model teach result</h1>
 <div class="card p-3 mb-4">
+     <h2>Графики прогнозов</h2>
     {% for plot_index in range(plot_count) %}
-        <h2>plot_index</h2>
         {{plots[plot_index]}}
     {% endfor %}
-    
+    <h3>Точность прогнозов mse в среднем для интервала в {{day}} = {{day}}*24: {{mse}}</h3>
+    <h3>Точность прогнозов r2 в среднем для интервала в {{day}} = {{day}}*24: {{r2}}</h3>
+    <h3>Точность первого прогноза mse : {{mse_1}}</h3>
+    <h3>Точность первого прогноза r2 : {{r2_1}}</h3>
 </div>'''
 
 predict_result = '''
@@ -200,20 +215,4 @@ predict_result = '''
     </div>
 </div>'''
 
-data_last= '''
-<section id="data_review_{{ data_review_id }}">
-    <div class="container mt-5" data-aos="fade-up">
-        <div class="card p-3 mb-4">
-            <h2>{{ data_review_name | safe }}</h2>
-            <div class="table-responsive">
-                {{ data_review_data | safe }}
-            </div>
-        </div>
-        <form action="/results_preprocessing_2" method="post" enctype="multipart/form-data">
-            <input type="hidden" name="mode" value="{{ mode }}">
-            <input type="hidden" name="model" value="{{ model }}">
-            <button type="submit" class="btn btn-primary" >Go to nex resulp page</button>
-        </form>
-    </div>
-</section>'''
 

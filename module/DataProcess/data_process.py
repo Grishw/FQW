@@ -59,6 +59,10 @@ def create_plot(plot_type, y, x, ylabel, xlabel, title, vertical_lines = []):
         fig.add_trace(go.Scatter(x=x, y=y, mode='markers', name='Scatter Plot'))
     else:
         raise ValueError(f"Unknown plot type: {plot_type}")
+    
+    # Добавляем вертикальные линии
+    for cp in vertical_lines:
+        fig.add_vline(x=cp, line=dict(color='red', dash='dash'), name='Change Point')
 
     # Настраиваем график
     fig.update_layout(
@@ -117,34 +121,6 @@ def wind_direction_normalization(df):
     df.drop('Wind_Direction', axis=1)
     return df
 
-class DisorderResult:
-    def __init__(self, B, indMax):
-        self.B = B
-        self.indMax = indMax
-
-def cusum(A):
-    average = np.mean(A)
-    dispersion_sum = np.sqrt(np.sum((A - average) ** 2) * len(A))
-    B = np.zeros(len(A))
-    indMax = 0
-    for i in range(len(A)):
-        sum_val = np.sum(A[:i+1] - average)
-        B[i] = sum_val / dispersion_sum
-        indMax = i if abs(B[i]) > abs(B[indMax]) else indMax
-    return DisorderResult(B, indMax)
-
-def min_info_error(A):
-        B = np.zeros(len(A))
-        c = np.log(2 * np.pi) + 1
-        indMax = 0
-        for i in range(len(A) - 2):
-            c1 = -(i + 1) * (np.log(np.mean(A[:i + 1] ** 2)) + c) / 2
-            c2 = -(len(A) - i - 1) * (np.log(np.mean(A[i + 1:] ** 2)) + c) / 2
-            c3 = len(A) * (np.log(np.mean(A ** 2)) + c) / 2
-            B[i] = c1 + c2 + c3
-            indMax = i if abs(B[i]) > abs(B[indMax]) else indMax
-        return DisorderResult(B, indMax)
-
 def pars_features(features = 'Temperature, Date'):
     features = features.replace('[','')
     features = features.replace(']','')
@@ -168,28 +144,6 @@ def normalize_input_data(target, data):
     else:
         normalz[target] = scaler_humidity.fit_transform(data[target].values.reshape(-1, 1))
         return normalz
-
-    
-
-def get_more_points(pointnow, points_data = [], procents = 0.1):
-    plus = points_data[pointnow] + points_data[pointnow]*procents
-    minus = points_data[pointnow] - (points_data[pointnow]*procents)
-    result = []
-
-    if plus < 0:
-        l = plus
-        plus = minus
-        minus = l
-
-    for elem in range(len(points_data)):
-        if points_data[elem] < plus:
-            if points_data[elem] > minus:
-                result.append(elem)
-    
-    return result
-    
-def get_point_with_max_index(points_data = []):
-    return points_data[len(points_data)-1]
 
 
 def get_prepeared_data(file_path, target):
@@ -372,6 +326,45 @@ def my_array_split(arr_x, arr_y, step = 120, pred = 24):
                 new_y.append(new_j)
                 new_j = []
             
+    return new_x, new_y
+
+def my_array_split_1(arr_x, arr_y, step = 120, pred = 24):
+    assert arr_x.shape == (4664, 3), "Начальный массив должен иметь форму (1, 120, 3)"
+    assert arr_y.shape == (4664, 2), "Массив новых элементов должен иметь форму (1, 24, 3)"
+    new_x = []
+    new_y = []
+    new_jx = []
+    new_iy = []
+    
+    j = 0
+    flag = 0
+    k = 0
+    w=0
+    
+    for i in arr_x:
+        j += 1
+        k += 1
+        new_jx.append(i)
+
+        if j >= step:
+            j = 0
+            flag = 1
+            new_x.append(new_jx)
+            new_jx = []
+
+            
+        if flag == 1:
+            w += 1
+            new_iy.append(arr_y[k])
+
+            if w >= pred:
+                w = 0
+                flag = 0
+                new_y.append(new_iy)
+                new_iy = []
+    if (len(new_x) > len(new_y)):
+        lensss = len(new_y)
+        new_x = [new_x[x] for x in range(lensss)]
     return new_x, new_y
 
 
